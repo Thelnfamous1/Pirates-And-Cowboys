@@ -45,7 +45,6 @@ public class PiratesAndCowboys
     private void setup(final FMLCommonSetupEvent event)
     {
         DeferredWorkQueue.runLater(() ->{
-                    EntityCommonSetup.registerAttributes();
                     EntityCommonSetup.registerSpawnPlacements();
                 }
         );
