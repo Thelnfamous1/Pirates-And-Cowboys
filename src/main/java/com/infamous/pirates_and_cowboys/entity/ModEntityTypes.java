@@ -3,6 +3,7 @@ package com.infamous.pirates_and_cowboys.entity;
 import com.infamous.pirates_and_cowboys.PiratesAndCowboys;
 import net.minecraft.entity.EntityClassification;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.item.BoatEntity;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.RegistryObject;
 import net.minecraftforge.registries.DeferredRegister;
@@ -26,5 +27,12 @@ public class ModEntityTypes {
                     .setTrackingRange(8)
                     .setCustomClientFactory((spawnEntity,world) -> new WranglerEntity(world))
                     .build(new ResourceLocation(PiratesAndCowboys.MODID, "wrangler").toString())
+    );
+
+    public static final RegistryObject<EntityType<MobBoatEntity>> MOB_BOAT = ENTITY_TYPES.register("mob_boat", () ->
+            EntityType.Builder.<MobBoatEntity>of(MobBoatEntity::new, EntityClassification.MISC)
+                    .sized(1.375F, 0.5625F)
+                    .clientTrackingRange(10)
+                    .build(new ResourceLocation(PiratesAndCowboys.MODID, "mob_boat").toString())
     );
 }

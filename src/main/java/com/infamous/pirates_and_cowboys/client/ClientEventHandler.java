@@ -18,6 +18,7 @@ public class ClientEventHandler {
     public static void onClientSetup(final FMLClientSetupEvent event) {
         RenderingRegistry.registerEntityRenderingHandler(ModEntityTypes.PLUNDERER.get(), PlundererRenderer::new);
         RenderingRegistry.registerEntityRenderingHandler(ModEntityTypes.WRANGLER.get(), WranglerRenderer::new);
+        RenderingRegistry.registerEntityRenderingHandler(ModEntityTypes.MOB_BOAT.get(), MobBoatRenderer::new);
     }
 
     @SubscribeEvent
