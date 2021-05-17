@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "com.infamous.pirates_and_cowboys.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "minVersion": "0.8",
+  "refmap": "pirates_and_cowboys.refmap.json",
+  "mixins": [
+    "AbstractHorseEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
