@@ -1,8 +1,6 @@
 package com.infamous.pirates_and_cowboys.entity;
 
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.block.LilyPadBlock;
 import net.minecraft.entity.*;
 import net.minecraft.entity.item.BoatEntity;
@@ -13,12 +11,10 @@ import net.minecraft.fluid.FluidState;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.network.IPacket;
 import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
 import net.minecraft.network.play.client.CSteerBoatPacket;
-import net.minecraft.network.play.server.SSpawnObjectPacket;
 import net.minecraft.particles.ParticleTypes;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.*;
@@ -41,13 +37,13 @@ import java.util.List;
 public class MobBoatEntity extends MobEntity {
     private static final DataParameter<CompoundNBT> BOAT_ENTITY = EntityDataManager.defineId(MobBoatEntity.class, DataSerializers.COMPOUND_TAG);
 
-    private static final DataParameter<Integer> DATA_ID_HURT = EntityDataManager.defineId(BoatEntity.class, DataSerializers.INT);
-    private static final DataParameter<Integer> DATA_ID_HURTDIR = EntityDataManager.defineId(BoatEntity.class, DataSerializers.INT);
-    private static final DataParameter<Float> DATA_ID_DAMAGE = EntityDataManager.defineId(BoatEntity.class, DataSerializers.FLOAT);
-    private static final DataParameter<Integer> DATA_ID_TYPE = EntityDataManager.defineId(BoatEntity.class, DataSerializers.INT);
-    private static final DataParameter<Boolean> DATA_ID_PADDLE_LEFT = EntityDataManager.defineId(BoatEntity.class, DataSerializers.BOOLEAN);
-    private static final DataParameter<Boolean> DATA_ID_PADDLE_RIGHT = EntityDataManager.defineId(BoatEntity.class, DataSerializers.BOOLEAN);
-    private static final DataParameter<Integer> DATA_ID_BUBBLE_TIME = EntityDataManager.defineId(BoatEntity.class, DataSerializers.INT);
+    private static final DataParameter<Integer> DATA_ID_HURT = EntityDataManager.defineId(MobBoatEntity.class, DataSerializers.INT);
+    private static final DataParameter<Integer> DATA_ID_HURTDIR = EntityDataManager.defineId(MobBoatEntity.class, DataSerializers.INT);
+    private static final DataParameter<Float> DATA_ID_DAMAGE = EntityDataManager.defineId(MobBoatEntity.class, DataSerializers.FLOAT);
+    private static final DataParameter<Integer> DATA_ID_TYPE = EntityDataManager.defineId(MobBoatEntity.class, DataSerializers.INT);
+    private static final DataParameter<Boolean> DATA_ID_PADDLE_LEFT = EntityDataManager.defineId(MobBoatEntity.class, DataSerializers.BOOLEAN);
+    private static final DataParameter<Boolean> DATA_ID_PADDLE_RIGHT = EntityDataManager.defineId(MobBoatEntity.class, DataSerializers.BOOLEAN);
+    private static final DataParameter<Integer> DATA_ID_BUBBLE_TIME = EntityDataManager.defineId(MobBoatEntity.class, DataSerializers.INT);
     private final float[] paddlePositions = new float[2];
     private float invFriction;
     private float outOfControlTicks;
@@ -87,6 +83,12 @@ public class MobBoatEntity extends MobEntity {
         this.zo = p_i1705_6_;
     }
 
+    public MobBoatEntity(World world, BoatEntity boatEntity) {
+        this(world, boatEntity.getX(), boatEntity.getY(), boatEntity.getZ());
+        this.addVanillaBoat(boatEntity);
+        this.setType(boatEntity.getBoatType());
+    }
+
 
     // LivingEntiy makes Entity#getEyeHeight final, so have to use this instead
     @Override
@@ -102,6 +104,8 @@ public class MobBoatEntity extends MobEntity {
 
     @Override
     protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(BOAT_ENTITY, new CompoundNBT());
         this.entityData.define(DATA_ID_HURT, 0);
         this.entityData.define(DATA_ID_HURTDIR, 1);
         this.entityData.define(DATA_ID_DAMAGE, 0.0F);
@@ -275,7 +279,9 @@ public class MobBoatEntity extends MobEntity {
         super.tick();
         this.tickLerp();
         if (this.isControlledByLocalInstance()) {
-            if (this.getPassengers().isEmpty() || !(this.getPassengers().get(0) instanceof PlayerEntity)) {
+            if (this.getPassengers().isEmpty()
+                    || !(this.getPassengers().get(0) instanceof PlayerEntity)
+                    || !(this.getPassengers().get(0) instanceof IBoatUser)) {
                 this.setPaddleState(false, false);
             }
 
@@ -311,14 +317,23 @@ public class MobBoatEntity extends MobEntity {
         }
 
         this.checkInsideBlocks();
-        List<Entity> list = this.level.getEntities(this, this.getBoundingBox().inflate((double)0.2F, (double)-0.01F, (double)0.2F), EntityPredicates.pushableBy(this));
-        if (!list.isEmpty()) {
-            boolean flag = !this.level.isClientSide && !(this.getControllingPassenger() instanceof PlayerEntity);
+        List<Entity> collidingEntities = this.level.getEntities(this, this.getBoundingBox().inflate((double)0.2F, (double)-0.01F, (double)0.2F), EntityPredicates.pushableBy(this));
+        if (!collidingEntities.isEmpty()) {
+            boolean notControlledServerSide = !this.level.isClientSide
+                    && !(this.getControllingPassenger() instanceof PlayerEntity)
+                    && !(this.getControllingPassenger() instanceof IBoatUser);
 
-            for(int j = 0; j < list.size(); ++j) {
-                Entity entity = list.get(j);
+            for(int j = 0; j < collidingEntities.size(); ++j) {
+                Entity entity = collidingEntities.get(j);
                 if (!entity.hasPassenger(this)) {
-                    if (flag && this.getPassengers().size() < 2 && !entity.isPassenger() && entity.getBbWidth() < this.getBbWidth() && entity instanceof LivingEntity && !(entity instanceof WaterMobEntity) && !(entity instanceof PlayerEntity)) {
+                    if (notControlledServerSide
+                            && this.getPassengers().size() < 2
+                            && !entity.isPassenger()
+                            && entity.getBbWidth() < this.getBbWidth()
+                            && entity instanceof LivingEntity
+                            && !(entity instanceof WaterMobEntity)
+                            && !(entity instanceof PlayerEntity)
+                            && !(entity instanceof IBoatUser)) {
                         entity.startRiding(this);
                     } else {
                         this.push(entity);
@@ -358,7 +373,7 @@ public class MobBoatEntity extends MobEntity {
                         this.setDeltaMovement(vector3d.add(0.0D, -0.7D, 0.0D));
                         this.ejectPassengers();
                     } else {
-                        this.setDeltaMovement(vector3d.x, this.hasPassenger(PlayerEntity.class) ? 2.7D : 0.6D, vector3d.z);
+                        this.setDeltaMovement(vector3d.x, this.hasPassenger(PlayerEntity.class) || this.hasPassenger(IBoatUser.class) ? 2.7D : 0.6D, vector3d.z);
                     }
                 }
 
@@ -587,7 +602,8 @@ public class MobBoatEntity extends MobEntity {
                 this.invFriction = 0.9F;
             } else if (this.status == BoatEntity.Status.ON_LAND) {
                 this.invFriction = this.landFriction;
-                if (this.getControllingPassenger() instanceof PlayerEntity) {
+                if (this.getControllingPassenger() instanceof PlayerEntity
+                        || this.getControllingPassenger() instanceof IBoatUser) {
                     this.landFriction /= 2.0F;
                 }
             }
@@ -712,16 +728,19 @@ public class MobBoatEntity extends MobEntity {
 
     @Override
     public void addAdditionalSaveData(CompoundNBT p_213281_1_) {
+        super.addAdditionalSaveData(p_213281_1_);
         p_213281_1_.putString("Type", this.getBoatType().getName());
+        this.writeBoatNBT(p_213281_1_);
     }
 
 
     @Override
     public void readAdditionalSaveData(CompoundNBT p_70037_1_) {
+        super.readAdditionalSaveData(p_70037_1_);
         if (p_70037_1_.contains("Type", 8)) {
             this.setType(BoatEntity.Type.byName(p_70037_1_.getString("Type")));
         }
-
+        this.readBoatNBT(p_70037_1_);
     }
 
     // supposed to use Entity#interact, but MobEntity makes it final, so this will have to do
@@ -864,5 +883,67 @@ public class MobBoatEntity extends MobEntity {
             this.lerpSteps = 0;
             this.absMoveTo(this.lerpX, this.lerpY, this.lerpZ, (float)this.lerpYRot, (float)this.lerpXRot);
         }
+    }
+
+    String ID_NBT_KEY = "id";
+    String BOAT_NBT_KEY = "Boat";
+
+    public CompoundNBT getVanillaBoat(){
+        return entityData.get(BOAT_ENTITY);
+    }
+
+    public void setVanillaBoat(CompoundNBT boatNBT){
+        this.entityData.set(BOAT_ENTITY, boatNBT);
+    }
+
+    public void writeBoatNBT(CompoundNBT writeAdditionalNBT) {
+        if (!this.getVanillaBoat().isEmpty()) {
+            writeAdditionalNBT.put(BOAT_NBT_KEY, this.getVanillaBoat());
+        }
+    }
+
+    public void readBoatNBT(CompoundNBT readAdditionalNBT) {
+        if (readAdditionalNBT.contains(BOAT_NBT_KEY, 10)) {
+            this.setVanillaBoat(readAdditionalNBT.getCompound(BOAT_NBT_KEY));
+        }
+    }
+
+    public boolean addVanillaBoat(BoatEntity boat) {
+        CompoundNBT boatNBT = new CompoundNBT();
+        String entityString = boat.getEncodeId();
+        if (entityString != null) {
+            boatNBT.putString(ID_NBT_KEY, entityString);
+            boat.saveWithoutId(boatNBT);
+            if (this.addVanillaBoat(boatNBT)) {
+                boat.remove();
+                return true;
+            } else {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    public boolean addVanillaBoat(CompoundNBT boatNBT) {
+        if (!this.isPassenger() && this.onGround && !this.isInWater()) {
+            if (this.getVanillaBoat().isEmpty()) {
+                this.setVanillaBoat(boatNBT);
+                return true;
+            }  else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    public boolean hasPassenger(Class aClass) {
+        for(Entity entity : this.getPassengers()) {
+            if (aClass.isAssignableFrom(entity.getClass())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

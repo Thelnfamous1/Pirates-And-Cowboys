@@ -7,7 +7,7 @@ import net.minecraft.nbt.CompoundNBT;
 
 import javax.annotation.Nullable;
 
-public interface IShoulderRidable<T extends LivingEntity> {
+public interface IShoulderRidable {
 
     String ID_NBT_KEY = "id";
     String SILENT_NBT_KEY = "Silent";
@@ -64,7 +64,7 @@ public interface IShoulderRidable<T extends LivingEntity> {
 
     void setRightShoulderEntity(CompoundNBT tag);
 
-    default void pickUpParrot(LivingEntity shoulderRidable, Entity entityIn) {
+    default <T extends LivingEntity & IShoulderRidable> void pickUpParrot(T shoulderRidable, Entity entityIn) {
         if(entityIn instanceof ShoulderRidingEntity
                 && ((ShoulderRidingEntity) entityIn).getOwnerUUID() == shoulderRidable.getUUID()){
             this.addShoulderEntity((ShoulderRidingEntity) entityIn);

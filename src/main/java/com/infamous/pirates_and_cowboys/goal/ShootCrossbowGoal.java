@@ -5,6 +5,7 @@ import net.minecraft.entity.ICrossbowUser;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.MobEntity;
 import net.minecraft.entity.ai.goal.Goal;
+import net.minecraft.entity.ai.goal.RangedCrossbowAttackGoal;
 import net.minecraft.item.CrossbowItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.RangedInteger;
@@ -12,19 +13,19 @@ import net.minecraft.util.RangedInteger;
 import java.util.EnumSet;
 
 public class ShootCrossbowGoal<T extends MobEntity & ICrossbowUser> extends Goal {
-   public static final RangedInteger RANGED_ATTACK_COOLDOWN_TIME = new RangedInteger(20, 40);
+   public static final RangedInteger PATHFINDING_DELAY_RANGE = new RangedInteger(20, 40);
    private final T crossbowUser;
    private ShootCrossbowGoal.CrossbowState crossbowState = ShootCrossbowGoal.CrossbowState.UNCHARGED;
-   private final double moveSpeedAmp;
-   private final float maxAttackDistanceSq;
-   private int seeTimer;
-   private int readyTimer;
-   private int attackCooldownTime;
+   private final double speedModifier;
+   private final float attackRadiusSq;
+   private int seeTime;
+   private int attackDelay;
+   private int updatePathDelay;
 
    public ShootCrossbowGoal(T crossbowUser, double moveSpeedAmpIn, float maxAttackDistanceIn) {
       this.crossbowUser = crossbowUser;
-      this.moveSpeedAmp = moveSpeedAmpIn;
-      this.maxAttackDistanceSq = maxAttackDistanceIn * maxAttackDistanceIn;
+      this.speedModifier = moveSpeedAmpIn;
+      this.attackRadiusSq = maxAttackDistanceIn * maxAttackDistanceIn;
       this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
    }
 
@@ -32,15 +33,15 @@ public class ShootCrossbowGoal<T extends MobEntity & ICrossbowUser> extends Goal
     * Returns whether execution should begin. You can also read and cache any state necessary for execution in this
     * method as well.
     */
-   public boolean shouldExecute() {
+   public boolean canUse() {
       return this.hasValidTarget() && RangedMobHelper.shouldUseCrossbow(this.crossbowUser);
    }
 
    /**
     * Returns whether an in-progress EntityAIBase should continue executing
     */
-   public boolean canUse() {
-      return this.hasValidTarget() && (this.shouldExecute() || !this.crossbowUser.getNavigation().isDone()) && RangedMobHelper.shouldUseCrossbow(this.crossbowUser);
+   public boolean canContinueToUse() {
+      return this.hasValidTarget() && (this.canUse() || !this.crossbowUser.getNavigation().isDone()) && RangedMobHelper.shouldUseCrossbow(this.crossbowUser);
    }
 
    private boolean hasValidTarget() {
@@ -54,7 +55,7 @@ public class ShootCrossbowGoal<T extends MobEntity & ICrossbowUser> extends Goal
       super.stop();
       this.crossbowUser.setAggressive(false);
       this.crossbowUser.setTarget((LivingEntity)null);
-      this.seeTimer = 0;
+      this.seeTime = 0;
       if (this.crossbowUser.isUsingItem()) {
          this.crossbowUser.stopUsingItem();
          this.crossbowUser.setChargingCrossbow(false);
@@ -70,27 +71,27 @@ public class ShootCrossbowGoal<T extends MobEntity & ICrossbowUser> extends Goal
       LivingEntity attackTarget = this.crossbowUser.getTarget();
       if (attackTarget != null) {
          boolean canSeeTarget = this.crossbowUser.getSensing().canSee(attackTarget);
-         boolean flag1 = this.seeTimer > 0;
+         boolean flag1 = this.seeTime > 0;
          if (canSeeTarget != flag1) {
-            this.seeTimer = 0;
+            this.seeTime = 0;
          }
 
          if (canSeeTarget) {
-            ++this.seeTimer;
+            ++this.seeTime;
          } else {
-            --this.seeTimer;
+            --this.seeTime;
          }
 
          double distanceSqToTarget = this.crossbowUser.distanceToSqr(attackTarget);
-         boolean cannotAttack = (distanceSqToTarget > (double)this.maxAttackDistanceSq || this.seeTimer < 5) && this.readyTimer == 0;
+         boolean cannotAttack = (distanceSqToTarget > (double)this.attackRadiusSq || this.seeTime < 5) && this.attackDelay == 0;
          if (cannotAttack) {
-            --this.attackCooldownTime;
-            if (this.attackCooldownTime <= 0) {
-               this.moveToTarget(attackTarget);
-               this.attackCooldownTime = RANGED_ATTACK_COOLDOWN_TIME.randomValue(this.crossbowUser.getRandom());
+            --this.updatePathDelay;
+            if (this.updatePathDelay <= 0) {
+               this.crossbowUser.getNavigation().moveTo(attackTarget, this.canRun() ? this.speedModifier : this.speedModifier * 0.5D);
+               this.updatePathDelay = PATHFINDING_DELAY_RANGE.randomValue(this.crossbowUser.getRandom());
             }
          } else {
-            this.attackCooldownTime = 0;
+            this.updatePathDelay = 0;
             this.crossbowUser.getNavigation().stop();
          }
 
@@ -109,14 +110,14 @@ public class ShootCrossbowGoal<T extends MobEntity & ICrossbowUser> extends Goal
             int i = this.crossbowUser.getTicksUsingItem();
             ItemStack activeItemStack = this.crossbowUser.getUseItem();
             if (i >= CrossbowItem.getChargeDuration(activeItemStack)) {
-               this.crossbowUser.stopUsingItem();
+               this.crossbowUser.releaseUsingItem();
                this.crossbowState = ShootCrossbowGoal.CrossbowState.CHARGED;
-               this.readyTimer = 20 + this.crossbowUser.getRandom().nextInt(20);
+               this.attackDelay = 20 + this.crossbowUser.getRandom().nextInt(20);
                this.crossbowUser.setChargingCrossbow(false);
             }
          } else if (this.crossbowState == ShootCrossbowGoal.CrossbowState.CHARGED) {
-            --this.readyTimer;
-            if (this.readyTimer == 0) {
+            --this.attackDelay;
+            if (this.attackDelay == 0) {
                this.crossbowState = ShootCrossbowGoal.CrossbowState.READY_TO_ATTACK;
             }
          } else if (this.crossbowState == ShootCrossbowGoal.CrossbowState.READY_TO_ATTACK && canSeeTarget) {
@@ -128,11 +129,7 @@ public class ShootCrossbowGoal<T extends MobEntity & ICrossbowUser> extends Goal
       }
    }
 
-   protected void moveToTarget(LivingEntity attackTarget) {
-      this.crossbowUser.getNavigation().moveTo(attackTarget, this.isUncharged() ? this.moveSpeedAmp : this.moveSpeedAmp * 0.5D);
-   }
-
-   private boolean isUncharged() {
+   private boolean canRun() {
       return this.crossbowState == ShootCrossbowGoal.CrossbowState.UNCHARGED;
    }
 

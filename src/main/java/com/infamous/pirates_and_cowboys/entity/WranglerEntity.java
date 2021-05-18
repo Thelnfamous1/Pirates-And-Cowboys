@@ -1,7 +1,10 @@
 package com.infamous.pirates_and_cowboys.entity;
 
-import com.infamous.pirates_and_cowboys.pathfinding.*;
-import net.minecraft.entity.*;
+import com.infamous.pirates_and_cowboys.goal.LookForHorseGoal;
+import com.infamous.pirates_and_cowboys.pathfinding.HorsemanGroundPathNavigator;
+import com.infamous.pirates_and_cowboys.pathfinding.HorsemanMoveController;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.ai.attributes.AttributeModifierMap;
 import net.minecraft.entity.ai.attributes.Attributes;
 import net.minecraft.entity.ai.controller.MovementController;
@@ -29,6 +32,11 @@ public class WranglerEntity extends RogueIllagerEntity implements IHorseUser {
     public WranglerEntity(EntityType<? extends WranglerEntity> entityType, World world){
         super(entityType, world);
         this.moveControl = new HorsemanMoveController<>(this);
+    }
+    @Override
+    protected void registerGoals() {
+        super.registerGoals();
+        this.goalSelector.addGoal(0, new LookForHorseGoal<>(this, 16.0D, 1.0D));
     }
 
     @Override
@@ -68,8 +76,8 @@ public class WranglerEntity extends RogueIllagerEntity implements IHorseUser {
     }
 
     @Override
-    protected void updateAITasks() {
-        super.updateAITasks();
+    protected void customServerAiStep() {
+        super.customServerAiStep();
         if(this.horseJumpCooldown > 0){
             this.horseJumpCooldown--;
         }
@@ -119,6 +127,11 @@ public class WranglerEntity extends RogueIllagerEntity implements IHorseUser {
     }
 
     @Override
+    public HorsemanGroundPathNavigator getMountingNavigator() {
+        return (HorsemanGroundPathNavigator) this.navigation;
+    }
+
+    @Override
     public int getHorseJumpCooldown() {
         return this.horseJumpCooldown;
     }
@@ -126,10 +139,5 @@ public class WranglerEntity extends RogueIllagerEntity implements IHorseUser {
     @Override
     public void setHorseJumpCooldown(int horseJumpCooldown) {
         this.horseJumpCooldown = horseJumpCooldown;
-    }
-
-    @Override
-    public HorsemanGroundPathNavigator getMountingNavigator() {
-        return (HorsemanGroundPathNavigator) this.navigation;
     }
 }

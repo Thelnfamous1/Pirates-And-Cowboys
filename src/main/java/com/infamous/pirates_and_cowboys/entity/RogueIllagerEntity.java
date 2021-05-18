@@ -63,7 +63,8 @@ public abstract class RogueIllagerEntity extends AbstractIllagerEntity implement
     protected abstract ItemStack createWeaponStack();
 
     // assuming this function just checks if the mob can use the given shootable item
-    public boolean func_230280_a_(ShootableItem shootableItem) {
+    @Override
+    public boolean canFireProjectileWeapon(ShootableItem shootableItem) {
         return true;
     }
 
@@ -88,6 +89,7 @@ public abstract class RogueIllagerEntity extends AbstractIllagerEntity implement
         this.goalSelector.addGoal(8, new RandomWalkingGoal(this, AI_WALK_SPEED_MULTIPLIER));
         this.goalSelector.addGoal(9, new BetterLookAtGoal(this, PlayerEntity.class, 15.0F, 1.0F));
         this.goalSelector.addGoal(10, new BetterLookAtGoal(this, MobEntity.class, 15.0F));
+
         this.targetSelector.addGoal(1, (new HurtByTargetGoal(this, AbstractRaiderEntity.class)).setAlertOthers());
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, PlayerEntity.class, true));
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, AbstractVillagerEntity.class, false));
@@ -114,7 +116,7 @@ public abstract class RogueIllagerEntity extends AbstractIllagerEntity implement
                 this.goalSelector.addGoal(4, shootBowGoal);
             }
             else if(RangedMobHelper.shouldUseShootable(this)){
-                PiratesAndCowboys.LOGGER.debug(this.toString() + " is using a modded ShootableItem!");
+                PiratesAndCowboys.LOGGER.debug(this + " is using a modded ShootableItem!");
             }
             else if(RangedMobHelper.shouldUseTrident(this)){
                 this.goalSelector.addGoal(4, throwTridentGoal);

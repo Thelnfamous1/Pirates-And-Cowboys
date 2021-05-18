@@ -1,11 +1,18 @@
 package com.infamous.pirates_and_cowboys.entity;
 
+import com.infamous.pirates_and_cowboys.PiratesAndCowboys;
 import com.infamous.pirates_and_cowboys.goal.LookForBoatGoal;
+import com.infamous.pirates_and_cowboys.pathfinding.HorsemanGroundPathNavigator;
+import com.infamous.pirates_and_cowboys.pathfinding.HorsemanMoveController;
+import com.infamous.pirates_and_cowboys.pathfinding.MountingGroundPathNavigator;
+import com.infamous.pirates_and_cowboys.pathfinding.MountingMoveController;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.ai.attributes.AttributeModifierMap;
 import net.minecraft.entity.ai.attributes.Attributes;
+import net.minecraft.entity.ai.controller.MovementController;
+import net.minecraft.entity.item.BoatEntity;
 import net.minecraft.entity.monster.MonsterEntity;
 import net.minecraft.entity.passive.ParrotEntity;
 import net.minecraft.entity.passive.TameableEntity;
@@ -16,6 +23,7 @@ import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
+import net.minecraft.pathfinding.PathNavigator;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.util.SoundEvents;
@@ -24,6 +32,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.server.ServerWorld;
 
 import javax.annotation.Nullable;
+import java.util.Optional;
 
 public class PlundererEntity extends RogueIllagerEntity implements IShoulderRidable, IBoatUser {
     private long timeEntitySatOnShoulder = 0;
@@ -36,6 +45,12 @@ public class PlundererEntity extends RogueIllagerEntity implements IShoulderRida
 
     public PlundererEntity(EntityType<? extends PlundererEntity> entityType, World world){
         super(entityType, world);
+        this.moveControl = new MountingMoveController<>(this);
+    }
+
+    @Override
+    protected PathNavigator createNavigation(World worldIn) {
+        return new MountingGroundPathNavigator<>(this, worldIn);
     }
 
     @Override
@@ -208,7 +223,6 @@ public class PlundererEntity extends RogueIllagerEntity implements IShoulderRida
                 ((ServerWorld)this.level).addWithUUID(entity);
             });
         }
-
     }
 
     private void handleShoulderEntityOnLivingTick() {
@@ -226,12 +240,53 @@ public class PlundererEntity extends RogueIllagerEntity implements IShoulderRida
     }
 
     @Override
-    public boolean startRiding(Entity entityIn, boolean force) {
-        return super.startRiding(entityIn, force);
+    public boolean startRiding(Entity vehicleIn){
+        if(vehicleIn.getType() == EntityType.BOAT){
+            Optional<MobBoatEntity> optionalBoat = this.convertBoatToMobBoat(this.level, (BoatEntity)vehicleIn);
+            if(optionalBoat.isPresent()){
+                MobBoatEntity mobBoat = optionalBoat.get();
+                PiratesAndCowboys.LOGGER.info("Converted a vanilla boat to a mob boat!");
+                return super.startRiding(mobBoat);
+            }
+            else return super.startRiding(vehicleIn);
+        }
+        else return super.startRiding(vehicleIn);
     }
 
     @Override
-    public void rideTick() {
-        super.rideTick();
+    public void stopRiding() {
+        Entity vehicle = this.getVehicle();
+        super.stopRiding();
+        if(vehicle instanceof MobBoatEntity){
+            Optional<BoatEntity> optionalBoat = this.convertMobBoatToBoat(this.level, (MobBoatEntity)vehicle);
+            if(optionalBoat.isPresent()){
+                PiratesAndCowboys.LOGGER.info("Converted a mob boat to a vanilla boat!");
+            }
+        }
     }
+
+    // Inherited methods from parent class that now utilize interface methods
+
+    @Override
+    public MovementController getMoveControl() {
+        return this.getMountingMoveController();
+    }
+
+    @Override
+    public PathNavigator getNavigation() {
+        return this.getMountingNavigator();
+    }
+
+    // IMOUNTUSER METHODS
+
+    @Override
+    public MountingMoveController getMountingMoveController() {
+        return (MountingMoveController) this.moveControl;
+    }
+
+    @Override
+    public MountingGroundPathNavigator getMountingNavigator() {
+        return (MountingGroundPathNavigator) this.navigation;
+    }
+
 }

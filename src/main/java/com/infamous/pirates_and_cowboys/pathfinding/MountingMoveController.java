@@ -36,10 +36,12 @@ public class MountingMoveController<T extends MobEntity & IMountUser> extends Mo
 
     protected void handleWait() {
         this.getNavigatingMob().setZza(0.0F);
+        //this.getActualMovingMob().setZza(0.0F);
     }
 
     protected void handleJumping() {
         this.getNavigatingMob().setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
+        //this.getActualMovingMob().setSpeed((float)(this.speedModifier * this.getActualMovingMob().getAttributeValue(Attributes.MOVEMENT_SPEED)));
         if (this.getActualMovingMob().isOnGround()) {
             this.operation = Action.WAIT;
         }
@@ -53,12 +55,14 @@ public class MountingMoveController<T extends MobEntity & IMountUser> extends Mo
         double positionDifferenceSq = xDifference * xDifference + yDifference * yDifference + zDifference * zDifference;
         if (positionDifferenceSq < (double)2.5000003E-7F) {
             this.getNavigatingMob().setZza(0.0F);
+            //this.getActualMovingMob().setZza(0.0F);
             return;
         }
 
         float targetAngle = (float)(MathHelper.atan2(zDifference, xDifference) * (double)(180F / (float)Math.PI)) - 90.0F;
         this.getNavigatingMob().yRot = this.rotlerp(this.getNavigatingMob().yRot, targetAngle, 90.0F);
         this.getNavigatingMob().setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
+        //this.getActualMovingMob().setSpeed((float)(this.speedModifier * this.getActualMovingMob().getAttributeValue(Attributes.MOVEMENT_SPEED)));
 
         this.handleMoveToJump(xDifference, zDifference, yDifference);
     }
@@ -84,6 +88,7 @@ public class MountingMoveController<T extends MobEntity & IMountUser> extends Mo
 
     protected void handleStrafe() {
         float movementSpeed = (float)this.getNavigatingMob().getAttributeValue(Attributes.MOVEMENT_SPEED);
+        //float movementSpeed = (float)this.getActualMovingMob().getAttributeValue(Attributes.MOVEMENT_SPEED);
         float adjustedMovementSpeed = (float)this.speedModifier * movementSpeed;
         float strafeForwards = this.strafeForwards;
         float strafeRight = this.strafeRight;
@@ -105,8 +110,11 @@ public class MountingMoveController<T extends MobEntity & IMountUser> extends Mo
         }
 
         this.getNavigatingMob().setSpeed(adjustedMovementSpeed);
+        //this.getActualMovingMob().setSpeed(adjustedMovementSpeed);
         this.getNavigatingMob().setZza(this.strafeForwards);
+        //this.getActualMovingMob().setZza(this.strafeForwards);
         this.getNavigatingMob().setXxa(this.strafeRight);
+        //this.getActualMovingMob().setXxa(this.strafeRight);
         this.operation = Action.WAIT;
     }
 
